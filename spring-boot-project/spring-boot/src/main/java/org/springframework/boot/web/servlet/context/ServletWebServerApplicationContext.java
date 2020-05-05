@@ -146,10 +146,15 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 		}
 	}
 
+	/**
+	 * 这个方法重写实现了 Spring 的扩展，在刷新上下文后 执行这里
+	 */
 	@Override
 	protected void onRefresh() {
 		super.onRefresh();
 		try {
+			// 在这里判断当前是使用外部web 容器还是内嵌web容器
+			// 如果是内嵌的话，就在里面启动一个web容器
 			createWebServer();
 		}
 		catch (Throwable ex) {
@@ -174,9 +179,14 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 
 	private void createWebServer() {
 		WebServer webServer = this.webServer;
+		// 如果是以war包的方式启动 springboot servletContext 就会不为空
 		ServletContext servletContext = getServletContext();
 		if (webServer == null && servletContext == null) {
+			// 当以jar包方式启动项目的适合 就会尝试启动内嵌的tomcat
+			// 从 spring 容器当中 拿到 WebServerFactory 的实现
 			ServletWebServerFactory factory = getWebServerFactory();
+			// getSelfInitializer() 拿到所有 ServletContextInitializer 的实现类
+			// getWebServer 这个方法里面执行 tomcat 的启动
 			this.webServer = factory.getWebServer(getSelfInitializer());
 		}
 		else if (servletContext != null) {

@@ -268,9 +268,14 @@ public class SpringApplication {
 		this.resourceLoader = resourceLoader;
 		Assert.notNull(primarySources, "PrimarySources must not be null");
 		this.primarySources = new LinkedHashSet<>(Arrays.asList(primarySources));
+		// 判断你的项目是web 应用还是java应用还是 webflux 应用
 		this.webApplicationType = WebApplicationType.deduceFromClasspath();
+		// 去项目的根路径去扫描 META-INF/spring.factories 文件，并且从其中取出某个类型的所有对象
+		// springboot 初始化的监听器
 		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class));
+		// springboot 全局的监听器
 		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
+		// 推断主配置类
 		this.mainApplicationClass = deduceMainApplicationClass();
 	}
 
@@ -296,29 +301,44 @@ public class SpringApplication {
 	 * @return a running {@link ApplicationContext}
 	 */
 	public ConfigurableApplicationContext run(String... args) {
+		// spring 的计时器帮助类
 		StopWatch stopWatch = new StopWatch();
 		stopWatch.start();
 		ConfigurableApplicationContext context = null;
 		Collection<SpringBootExceptionReporter> exceptionReporters = new ArrayList<>();
+		// 初始化一个图形化界面的组件 javaswing java awt
 		configureHeadlessProperty();
+		// 去配置文件里读取 SpringApplicationRunListener 的实现
 		SpringApplicationRunListeners listeners = getRunListeners(args);
+		// 回调 SpringApplicationRunListener 监听器的 starting 方法
 		listeners.starting();
 		try {
+			// 把传进来的命令行参数 构造成一个对象
 			ApplicationArguments applicationArguments = new DefaultApplicationArguments(args);
+			// 构造一个环境配置
 			ConfigurableEnvironment environment = prepareEnvironment(listeners, applicationArguments);
+			// 配置一些需要忽略的 bean
 			configureIgnoreBeanInfo(environment);
+			// 初始化 Banner 图并打印
 			Banner printedBanner = printBanner(environment);
+			// 创建一个 spring 的 ApplicationContext 对象
 			context = createApplicationContext();
 			exceptionReporters = getSpringFactoriesInstances(SpringBootExceptionReporter.class,
 					new Class[] { ConfigurableApplicationContext.class }, context);
+			// 准备初始化 Spring boot ，主要是发布监听
 			prepareContext(context, environment, listeners, applicationArguments, printedBanner);
+			// 初始化 spring context,spring boot 主要是重写了 onRefresh 并且在里面判断是否需要启动内嵌的web容器
 			refreshContext(context);
 			afterRefresh(context, applicationArguments);
+			// 计时器结束
 			stopWatch.stop();
 			if (this.logStartupInfo) {
 				new StartupInfoLogger(this.mainApplicationClass).logStarted(getApplicationLog(), stopWatch);
 			}
+			// 回调SpringApplicationRunListeners的started方法
+			// 表示已经启动完成
 			listeners.started(context);
+			// springboot 完全启动完了 回调 ApplicationRunner
 			callRunners(context, applicationArguments);
 		}
 		catch (Throwable ex) {
@@ -327,6 +347,7 @@ public class SpringApplication {
 		}
 
 		try {
+			// 回调 SpringApplicationRunListeners 的 running 方法
 			listeners.running(context);
 		}
 		catch (Throwable ex) {
@@ -342,12 +363,14 @@ public class SpringApplication {
 		ConfigurableEnvironment environment = getOrCreateEnvironment();
 		configureEnvironment(environment, applicationArguments.getSourceArgs());
 		ConfigurationPropertySources.attach(environment);
+		// 会专门有一个监听器去监听 spring boot 环境构建，并且去读取 application.yml 配置文件
 		listeners.environmentPrepared(environment);
 		bindToSpringApplication(environment);
 		if (!this.isCustomEnvironment) {
 			environment = new EnvironmentConverter(getClassLoader()).convertEnvironmentIfNecessary(environment,
 					deduceEnvironmentClass());
 		}
+		// ConfigurationPropertySources 里面的配置进行合并
 		ConfigurationPropertySources.attach(environment);
 		return environment;
 	}
@@ -366,8 +389,10 @@ public class SpringApplication {
 	private void prepareContext(ConfigurableApplicationContext context, ConfigurableEnvironment environment,
 			SpringApplicationRunListeners listeners, ApplicationArguments applicationArguments, Banner printedBanner) {
 		context.setEnvironment(environment);
+		// 对 context 进行后置处理 注入一些Bean 组件
 		postProcessApplicationContext(context);
 		applyInitializers(context);
+		// 回调 SpringApplicationRunListeners 的 contextPrepared();
 		listeners.contextPrepared(context);
 		if (this.logStartupInfo) {
 			logStartupInfo(context.getParent() == null);
@@ -1216,6 +1241,7 @@ public class SpringApplication {
 	}
 
 	/**
+	 * 开始启动springboot
 	 * Static helper that can be used to run a {@link SpringApplication} from the
 	 * specified sources using default settings and user supplied arguments.
 	 * @param primarySources the primary sources to load
